@@ -1,9 +1,13 @@
 <?php
+// Activar errores para debug
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: http://localhost");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Credentials: true");  // ← IMPORTANTE
 
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
@@ -13,25 +17,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 session_start();
 require_once __DIR__ . '/../db/config/database.php';
 
-// Debug: Verificar sesión
-error_log("Session ID: " . session_id());
-error_log("Session data: " . print_r($_SESSION, true));
-
 // Verificar autenticación
 if(!isset($_SESSION['user_id'])) {
-    echo json_encode(["success" => false, "message" => "Usuario no autenticado. Por favor inicia sesión nuevamente."]);
+    echo json_encode(["success" => false, "message" => "Usuario no autenticado. Session ID: " . session_id()]);
     exit();
 }
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if(!$data) {
-    echo json_encode(["success" => false, "message" => "No se recibieron datos"]);
-    exit();
-}
-
-if(!isset($data['items']) || empty($data['items'])) {
-    echo json_encode(["success" => false, "message" => "El carrito está vacío"]);
+if(!$data || !isset($data['items']) || empty($data['items'])) {
+    echo json_encode(["success" => false, "message" => "Datos inválidos o carrito vacío"]);
     exit();
 }
 
@@ -41,12 +36,9 @@ $conn = $database->getConnection();
 try {
     $conn->beginTransaction();
     
-    // Calcular totales
     $subtotal = floatval($data['subtotal']);
     $envio = floatval($data['envio']);
     $total = floatval($data['total']);
-    
-    // Generar número de pedido único
     $numeroPedido = 'PED-' . date('Ymd') . '-' . rand(1000, 9999);
     
     // Insertar pedido
@@ -72,7 +64,7 @@ try {
     
     // Insertar detalles y actualizar stock
     foreach($data['items'] as $item) {
-        // Verificar stock actual
+        // Verificar stock
         $stmt = $conn->prepare("SELECT stock FROM productos WHERE id = ?");
         $stmt->execute([$item['id']]);
         $producto = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -82,7 +74,7 @@ try {
         }
         
         if($producto['stock'] < $item['cantidad']) {
-            throw new Exception("Stock insuficiente para: " . $item['nombre'] . ". Disponible: " . $producto['stock']);
+            throw new Exception("Stock insuficiente para: " . $item['nombre']);
         }
         
         // Insertar detalle
@@ -96,14 +88,18 @@ try {
     
     $conn->commit();
     
-    // Limpiar carrito
-    unset($_SESSION['carrito']);
+    // Guardar pedido en sesión para confirmación
+    $_SESSION['ultimo_pedido'] = [
+        'id' => $pedidoId,
+        'numero' => $numeroPedido,
+        'total' => $total,
+        'items' => $data['items']
+    ];
     
     echo json_encode(["success" => true, "pedido_id" => $pedidoId, "numero_pedido" => $numeroPedido]);
     
 } catch(Exception $e) {
     $conn->rollBack();
-    error_log("Error en procesar_pedido: " . $e->getMessage());
     echo json_encode(["success" => false, "message" => $e->getMessage()]);
 }
 ?>

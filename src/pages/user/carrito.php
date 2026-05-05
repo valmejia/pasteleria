@@ -89,7 +89,7 @@ if(!isset($_SESSION['user_id'])) {
                         <div class="empty-icon">🛒</div>
                         <h2>Tu carrito está vacío</h2>
                         <p>¡Explora nuestra tienda y encuentra los mejores postres!</p>
-                        <a href="../tienda.php" class="btn-continuar-comprando">🍰 Continuar comprando</a>
+                        <a href="../user/tienda.php" class="btn-continuar-comprando">🍰 Continuar comprando</a>
                     </div>
                 `;
                 return;

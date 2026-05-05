@@ -129,3 +129,25 @@ CREATE TABLE IF NOT EXISTS detalle_pedidos (
 
 -- Verificar productos de ejemplo
 SELECT id, nombre, stock FROM productos LIMIT 5;
+
+
+USE pasteleria;
+
+-- Crear tabla de bitácora de inicios de sesión
+CREATE TABLE IF NOT EXISTS bitacora_sesiones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NULL,
+    usuario_email VARCHAR(100),
+    usuario_nombre VARCHAR(100),
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    fecha DATETIME NOT NULL,
+    estado ENUM('exitoso', 'fallido') DEFAULT 'fallido',
+    mensaje VARCHAR(255),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Crear índice para búsquedas rápidas
+CREATE INDEX idx_fecha ON bitacora_sesiones(fecha);
+CREATE INDEX idx_estado ON bitacora_sesiones(estado);
+CREATE INDEX idx_usuario ON bitacora_sesiones(usuario_id);

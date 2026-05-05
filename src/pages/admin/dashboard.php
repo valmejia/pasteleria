@@ -13,24 +13,22 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_rol'] !== 'admin') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - Pastelería</title>
+    <link rel="stylesheet" href="../../../assets/css/sidebar.css">
     <link rel="stylesheet" href="../../../assets/css/dashboard.css">
 </head>
 <body>
     <div class="admin-layout">
+        <!-- Sidebar component -->
+        <?php include_once '../../components/sidebar.php'; ?>
+        
+        <!-- Overlay para móvil -->
+        <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
         <main class="main-content">
             <!-- Top Navbar con búsqueda integrada -->
             <nav class="top-navbar">
-                <div class="navbar-brand">
-                    <span>🍰</span>
-                    <h1>Pastelería</h1>
-                </div>
-                
-                <div class="navbar-welcome">
-                    <span>Bienvenido,</span>
-                    <strong><?php echo htmlspecialchars($_SESSION['user_nombre']); ?></strong>
-                </div>
-                
-                <!-- Barra de búsqueda con lupa y X dentro -->
+            
+                <!-- Barra de búsqueda -->
                 <div class="navbar-search">
                     <div class="search-input-wrapper">
                         <span class="search-icon">🔍</span>
@@ -40,12 +38,10 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_rol'] !== 'admin') {
                     <button onclick="buscarProductos()" class="btn-search">Buscar</button>
                 </div>
                 
-                <div class="navbar-actions">
-                    <button onclick="cerrarSesion()" class="btn-logout">🚪 Cerrar Sesión</button>
-                </div>
+            
             </nav>
 
-            <!-- Resultados de búsqueda (se muestra solo cuando hay búsqueda activa) -->
+            <!-- Resultados de búsqueda -->
             <div id="searchResults" class="search-results-bar" style="display: none;">
                 <div class="results-info">
                     <span>🔍</span>
@@ -121,101 +117,107 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_rol'] !== 'admin') {
     <script>
         let terminoBusquedaActual = '';
         
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', function() {
             cargarProductos();
             
-            const searchInput = document.getElementById('searchInput');
-            const clearIcon = document.getElementById('clearSearchBtn');
+            var searchInput = document.getElementById('searchInput');
+            var clearIcon = document.getElementById('clearSearchBtn');
             
-            // Mostrar/ocultar icono de limpiar según el contenido
-            searchInput.addEventListener('input', function() {
-                if(this.value.length > 0) {
-                    clearIcon.style.display = 'flex';
-                } else {
-                    clearIcon.style.display = 'none';
-                }
-            });
-            
-            // Buscar al presionar Enter
-            searchInput.addEventListener('keypress', function(e) {
-                if(e.key === 'Enter') {
-                    buscarProductos();
-                }
-            });
+            if(searchInput) {
+                searchInput.addEventListener('input', function() {
+                    if(clearIcon) {
+                        clearIcon.style.display = this.value.length > 0 ? 'flex' : 'none';
+                    }
+                });
+                
+                searchInput.addEventListener('keypress', function(e) {
+                    if(e.key === 'Enter') {
+                        buscarProductos();
+                    }
+                });
+            }
         });
         
         async function cargarProductos(search = '') {
             terminoBusquedaActual = search;
             
             try {
-                const url = search ? `../../../api/productos.php?search=${encodeURIComponent(search)}` : '../../../api/productos.php';
-                const response = await fetch(url);
-                const productos = await response.json();
+                var url = search ? '../../../api/productos.php?search=' + encodeURIComponent(search) : '../../../api/productos.php';
+                var response = await fetch(url);
+                var productos = await response.json();
                 
                 actualizarStats(productos);
                 actualizarResultadosBusqueda(productos.length, search);
                 
-                const tbody = document.getElementById('productosBody');
+                var tbody = document.getElementById('productosBody');
+                if(!tbody) return;
+                
                 if(productos.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">No hay productos registrados</td</tr>';
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">No hay productos registrados</td></tr>';
                     return;
                 }
                 
-                tbody.innerHTML = productos.map(producto => {
-                    let imagenUrl = 'https://via.placeholder.com/50x50?text=No+Image';
+                var html = '';
+                for(var i = 0; i < productos.length; i++) {
+                    var producto = productos[i];
+                    var imagenUrl = 'https://via.placeholder.com/50x50?text=No+Image';
                     if(producto.tiene_imagen) {
-                        imagenUrl = `../../../api/imagen_producto.php?id=${producto.id}`;
+                        imagenUrl = '../../../api/imagen_producto.php?id=' + producto.id;
                     }
                     
-                    return `
-                        <tr>
-                            <td>${producto.id}</td>
-                            <td><img src="${imagenUrl}" class="producto-imagen" onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'"></td>
-                            <td><code>${producto.sku || '-'}</code></td>
-                            <td>
-                                <strong>${escapeHtml(producto.nombre)}</strong><br>
-                                <small style="color:#999;">${producto.descripcion?.substring(0, 40)}${producto.descripcion?.length > 40 ? '...' : ''}</small>
-                            </td>
-                            <td>${producto.categoria}</td>
-                            <td><strong>$${producto.precio}</strong></td>
-                            <td><span class="badge ${producto.stock > 0 ? 'badge-stock' : 'badge-agotado'}">${producto.stock > 0 ? producto.stock + ' uds' : 'Agotado'}</span></td>
-                            <td><span class="badge ${producto.visibilidad === 'publico' ? 'badge-publico' : 'badge-oculto'}">${producto.visibilidad === 'publico' ? '👁️ Público' : '👻 Oculto'}</span></td>
-                            <td>
-                                <a href="productos.php?id=${producto.id}" class="btn-edit">✏️ Editar</a>
-                                <button class="btn-delete" onclick="eliminarProducto(${producto.id})">🗑️ Eliminar</button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
+                    html += '<tr>';
+                    html += '<td>' + producto.id + '</td>';
+                    html += '<td><img src="' + imagenUrl + '" class="producto-imagen" onerror="this.src=\'https://via.placeholder.com/50x50?text=No+Image\'"></td>';
+                    html += '<td><code>' + (producto.sku || '-') + '</code></td>';
+                    html += '<td><strong>' + escapeHtml(producto.nombre) + '</strong><br><small style="color:#999;">' + (producto.descripcion ? producto.descripcion.substring(0, 40) : '') + (producto.descripcion && producto.descripcion.length > 40 ? '...' : '') + '</small></td>';
+                    html += '<td>' + producto.categoria + '</td>';
+                    html += '<td><strong>$' + producto.precio + '</strong></td>';
+                    html += '<td><span class="badge ' + (producto.stock > 0 ? 'badge-stock' : 'badge-agotado') + '">' + (producto.stock > 0 ? producto.stock + ' uds' : 'Agotado') + '</span></td>';
+                    html += '<td><span class="badge ' + (producto.visibilidad === 'publico' ? 'badge-publico' : 'badge-oculto') + '">' + (producto.visibilidad === 'publico' ? '👁️ Público' : '👻 Oculto') + '</span></td>';
+                    html += '<td><a href="productos.php?id=' + producto.id + '" class="btn-edit">✏️ Editar</a> <button class="btn-delete" onclick="eliminarProducto(' + producto.id + ')">🗑️ Eliminar</button></td>';
+                    html += '</tr>';
+                }
+                tbody.innerHTML = html;
+                
             } catch(error) {
                 console.error('Error:', error);
-                document.getElementById('productosBody').innerHTML = '<tr><td colspan="9" style="text-align: center;">Error al cargar productos</td</tr>';
+                var tbodyErr = document.getElementById('productosBody');
+                if(tbodyErr) {
+                    tbodyErr.innerHTML = '<tr><td colspan="9" style="text-align: center;">Error al cargar productos</td></tr>';
+                }
             }
         }
         
         function escapeHtml(text) {
             if(!text) return '';
-            const div = document.createElement('div');
+            var div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
         
         function actualizarStats(productos) {
-            const total = productos.length;
-            const activos = productos.filter(p => p.visibilidad === 'publico').length;
-            const stockTotal = productos.reduce((sum, p) => sum + p.stock, 0);
-            const valorInventario = productos.reduce((sum, p) => sum + (p.precio * p.stock), 0);
+            var total = productos.length;
+            var activos = 0;
+            var stockTotal = 0;
+            var valorInventario = 0;
+            
+            for(var i = 0; i < productos.length; i++) {
+                var p = productos[i];
+                if(p.visibilidad === 'publico') activos++;
+                stockTotal += p.stock;
+                valorInventario += (p.precio * p.stock);
+            }
             
             document.getElementById('totalProductos').textContent = total;
             document.getElementById('productosActivos').textContent = activos;
             document.getElementById('stockTotal').textContent = stockTotal;
-            document.getElementById('valorInventario').textContent = `$${valorInventario.toFixed(2)}`;
+            document.getElementById('valorInventario').textContent = '$' + valorInventario.toFixed(2);
         }
         
         function actualizarResultadosBusqueda(cantidad, search) {
-            const searchResultsDiv = document.getElementById('searchResults');
-            const resultadosCount = document.getElementById('resultadosCount');
-            const terminoBusquedaSpan = document.getElementById('terminoBusqueda');
+            var searchResultsDiv = document.getElementById('searchResults');
+            var resultadosCount = document.getElementById('resultadosCount');
+            var terminoBusquedaSpan = document.getElementById('terminoBusqueda');
             
             if(search && search.trim() !== '') {
                 searchResultsDiv.style.display = 'flex';
@@ -227,21 +229,22 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_rol'] !== 'admin') {
         }
         
         function buscarProductos() {
-            const search = document.getElementById('searchInput').value.trim();
+            var search = document.getElementById('searchInput').value.trim();
             cargarProductos(search);
         }
         
         function limpiarBusqueda() {
             document.getElementById('searchInput').value = '';
-            document.getElementById('clearSearchBtn').style.display = 'none';
+            var clearIcon = document.getElementById('clearSearchBtn');
+            if(clearIcon) clearIcon.style.display = 'none';
             cargarProductos('');
         }
         
         function eliminarProducto(id) {
             if(confirm('¿Estás seguro de eliminar este producto?')) {
-                fetch(`../../../api/productos.php?id=${id}`, { method: 'DELETE' })
-                .then(response => response.json())
-                .then(data => {
+                fetch('../../../api/productos.php?id=' + id, { method: 'DELETE' })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
                     if(data.success) {
                         alert('✅ Producto eliminado');
                         cargarProductos(terminoBusquedaActual);
@@ -249,7 +252,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_rol'] !== 'admin') {
                         alert('❌ Error al eliminar');
                     }
                 })
-                .catch(error => {
+                .catch(function(error) {
                     alert('❌ Error al eliminar el producto');
                 });
             }
@@ -259,25 +262,25 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_rol'] !== 'admin') {
             if(confirm('¿Estás seguro de que deseas cerrar sesión?')) {
                 fetch('../../../api/auth.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
-                    body: JSON.stringify({action: 'logout'})
+                    body: JSON.stringify({ action: 'logout' })
                 })
-                .then(response => response.json())
-                .then(data => {
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
                     if(data.success) {
                         localStorage.removeItem('carrito');
                         window.location.href = '../../../index.php';
-                    } else {
-                        alert('Error al cerrar sesión');
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    localStorage.removeItem('carrito');
-                    window.location.href = '../../../index.php';
                 });
             }
+        }
+        
+        function closeSidebar() {
+            var sidebar = document.querySelector('.sidebar');
+            var overlay = document.querySelector('.sidebar-overlay');
+            if(sidebar) sidebar.classList.remove('open');
+            if(overlay) overlay.classList.remove('active');
         }
     </script>
 </body>

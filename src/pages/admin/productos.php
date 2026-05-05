@@ -22,88 +22,20 @@ if(isset($_GET['id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $isEdit ? 'Editar' : 'Agregar'; ?> Producto - Pastelería</title>
+    <link rel="stylesheet" href="../../../assets/css/sidebar.css">
     <link rel="stylesheet" href="../../../assets/css/dashboard.css">
-    <link rel="stylesheet" href="../../../assets/css/formulario.css">
-    <style>
-        .image-preview {
-            margin-top: 15px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .preview-item {
-            position: relative;
-            display: inline-block;
-        }
-        .preview-item img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 10px;
-            border: 2px solid #E8D5E8;
-        }
-        .remove-image {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .current-image {
-            margin-top: 10px;
-            padding: 10px;
-            background: #f9f5f9;
-            border-radius: 10px;
-        }
-        .current-image img {
-            max-width: 150px;
-            border-radius: 10px;
-        }
-        .btn-remove-img {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .btn-remove-img:hover {
-            background: #c82333;
-        }
-    </style>
+    <link rel="stylesheet" href="../../../assets/css/productos.css">
 </head>
 <body>
     <div class="admin-layout">
+        <!-- Sidebar component -->
+        <?php include_once '../../components/sidebar.php'; ?>
+        <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
         <main class="main-content">
-            <nav class="top-navbar">
-                <div class="navbar-brand">
-                    <span>🍰</span>
-                    <h1>Pastelería</h1>
-                </div>
-                <div class="navbar-welcome">
-                    <span>Bienvenido,</span>
-                    <strong><?php echo htmlspecialchars($_SESSION['user_nombre']); ?></strong>
-                </div>
-                <div class="navbar-actions">
-                    <button onclick="cerrarSesion()" class="btn-logout">Cerrar Sesión</button>
-                </div>
-            </nav>
+             <h1>Productos</h1>
 
             <div class="form-container">
-                <div class="form-header">
-                    <h2><?php echo $isEdit ? 'Editar Producto' : 'Agregar Nuevo Producto'; ?></h2>
-                    <a href="dashboard.php" class="btn-back">← Volver al Dashboard</a>
-                </div>
 
                 <form id="productoForm" class="producto-form" enctype="multipart/form-data">
                     <input type="hidden" id="productoId" value="<?php echo $isEdit ? $producto['id'] : ''; ?>">
@@ -161,15 +93,13 @@ if(isset($_GET['id'])) {
                         <input type="file" id="imagen" accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
                         <span class="help-text">Selecciona una imagen para el producto (JPG, PNG, GIF, WEBP - Máx. 5MB)</span>
                         
-                        <!-- Vista previa de la nueva imagen -->
                         <div class="image-preview" id="imagePreview"></div>
                         
-                        <!-- Imagen actual -->
                         <?php if($isEdit && isset($producto['tiene_imagen']) && $producto['tiene_imagen']): ?>
                         <div class="current-image" id="currentImageDiv">
-                            <label>Imagen actual:</label><br>
+                            <label>📷 Imagen actual:</label><br>
                             <img src="../../../api/imagen_producto.php?id=<?php echo $producto['id']; ?>" alt="Imagen actual">
-                            <button type="button" class="btn-remove-img" onclick="marcarEliminarImagen()">🗑️ Eliminar imagen actual</button>
+                            <div><button type="button" class="btn-remove-img" onclick="marcarEliminarImagen()">🗑️ Eliminar imagen actual</button></div>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -224,7 +154,6 @@ if(isset($_GET['id'])) {
     <script>
         let nuevaImagenSeleccionada = false;
         
-        // Vista previa de la nueva imagen
         document.getElementById('imagen')?.addEventListener('change', function(e) {
             const preview = document.getElementById('imagePreview');
             preview.innerHTML = '';
@@ -285,7 +214,7 @@ if(isset($_GET['id'])) {
             
             const submitBtn = document.querySelector('.btn-submit');
             const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = 'Guardando...';
+            submitBtn.innerHTML = '💾 Guardando...';
             submitBtn.disabled = true;
             
             try {
@@ -300,12 +229,12 @@ if(isset($_GET['id'])) {
                     alert('✅ ' + data.message);
                     window.location.href = 'dashboard.php';
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('❌ Error: ' + data.message);
                     submitBtn.innerHTML = originalText;
                     submitBtn.disabled = false;
                 }
             } catch(error) {
-                alert('Error al guardar el producto');
+                alert('❌ Error al guardar el producto');
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
@@ -315,24 +244,24 @@ if(isset($_GET['id'])) {
             if(confirm('¿Estás seguro de que deseas cerrar sesión?')) {
                 fetch('../../../api/auth.php', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({action: 'logout'})
                 })
                 .then(response => response.json())
                 .then(data => {
                     if(data.success) {
+                        localStorage.removeItem('carrito');
                         window.location.href = '../../../index.php';
                     }
-                })
-                .catch(error => {
-                    window.location.href = '../../../index.php';
                 });
             }
         }
         
-        // Validación en tiempo real
+        function closeSidebar() {
+            document.querySelector('.sidebar')?.classList.remove('open');
+            document.querySelector('.sidebar-overlay')?.classList.remove('active');
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             const skuInput = document.getElementById('sku');
             skuInput?.addEventListener('input', function(e) {

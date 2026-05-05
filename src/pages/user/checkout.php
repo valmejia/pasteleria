@@ -155,54 +155,51 @@ $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
                             </div>
                         </div>
 
-                        <!-- Código de barras para OXXO - Versión final -->
-<div id="oxxoFields" class="payment-fields" style="display:none;">
-    <div class="barcode-card">
-        <div class="barcode-header">
-            <span>📷</span>
-            <h3>CÓDIGO DE BARRAS PARA PAGO</h3>
-        </div>
-        
-        <div id="codigoBarras" class="barcode-display"></div>
-        
-        <div class="barcode-ref-container">
-            <div class="ref-title">📌 CÓDIGO DE REFERENCIA</div>
-            <div class="ref-code" id="oxxoCode"></div>
-            <div class="ref-number" id="oxxoNumber"></div>
-        </div>
-        
-        <div class="barcode-amount-container">
-            <div class="amount-label">💰 MONTO A PAGAR</div>
-            <div class="amount-value" id="montoOxxo">$0.00 MXN</div>
-        </div>
-        
-        <div class="barcode-instructions-container">
-            <div class="instructions-title">📋 Instrucciones de pago en OXXO:</div>
-            <ol class="instructions-list">
-                <li>Acude a cualquier tienda OXXO</li>
-                <li>Indica que deseas pagar en efectivo</li>
-                <li>Muestra este código de barras o el número de referencia</li>
-                <li>Realiza el pago y guarda tu ticket</li>
-            </ol>
-        </div>
-        
-        <div class="barcode-timer-container" id="timerOxxo">
-            ⏳ Tiempo restante para pagar: 23:59:59
-        </div>
-        
-        <button type="button" onclick="generarCodigoOxxo()" class="btn-regenerar">
-            🔄 Regenerar código
-        </button>
-    </div>
-</div>
+                        <!-- Código de barras para OXXO -->
+                        <div id="oxxoFields" class="payment-fields" style="display:none;">
+                            <div class="barcode-card">
+                                <div class="barcode-header">
+                                    <span>📷</span>
+                                    <h3>CÓDIGO DE BARRAS PARA PAGO</h3>
+                                </div>
+                                <div id="codigoBarras" class="barcode-display"></div>
+                                <div class="barcode-ref-container">
+                                    <div class="ref-title">📌 CÓDIGO DE REFERENCIA</div>
+                                    <div class="ref-code" id="oxxoCode"></div>
+                                    <div class="ref-number" id="oxxoNumber"></div>
+                                </div>
+                                <div class="barcode-amount-container">
+                                    <div class="amount-label">💰 MONTO A PAGAR</div>
+                                    <div class="amount-value" id="montoOxxo">$0.00 MXN</div>
+                                </div>
+                                <div class="barcode-instructions-container">
+                                    <div class="instructions-title">📋 Instrucciones de pago en OXXO:</div>
+                                    <ol class="instructions-list">
+                                        <li>Acude a cualquier tienda OXXO</li>
+                                        <li>Indica que deseas pagar en efectivo</li>
+                                        <li>Muestra este código de barras o el número de referencia</li>
+                                        <li>Realiza el pago y guarda tu ticket</li>
+                                    </ol>
+                                </div>
+                                <div class="barcode-timer-container" id="timerOxxo">⏳ Tiempo restante para pagar: 23:59:59</div>
+                                <button type="button" onclick="generarCodigoOxxo()" class="btn-regenerar">🔄 Regenerar código</button>
+                            </div>
+                        </div>
 
-                    <button type="submit" class="btn-confirmar">✅ Confirmar compra</button>
+                        <button type="submit" class="btn-confirmar">✅ Confirmar compra</button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 
     <script>
+        function escapeHtml(text) {
+    if(!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
     console.log('Script iniciado');
     
     let carrito = [];
@@ -211,82 +208,124 @@ $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
     let envio = 89;
     let total = 0;
 
-    async function cargarDatos() {
-        console.log('Cargando datos...');
-        try {
-            const response = await fetch('../../../api/productos.php');
-            const productos = await response.json();
-            productosGlobal = productos;
-            
-            const carritoStorage = localStorage.getItem('carrito');
-            if(!carritoStorage || carritoStorage === '[]') {
-                window.location.href = '../tienda.php';
-                return;
-            }
-            
-            carrito = JSON.parse(carritoStorage);
-            if(carrito.length === 0) {
-                window.location.href = '../tienda.php';
-                return;
-            }
-            
-            carrito = carrito.map(item => {
-                const producto = productosGlobal.find(p => p.id == item.id);
-                if(producto) {
-                    return {
-                        ...item,
-                        nombre: producto.nombre,
-                        precio: parseFloat(producto.precio),
-                        stock: producto.stock
-                    };
-                }
-                return item;
-            });
-            
-            calcularTotales();
-            mostrarResumen();
-        } catch(error) {
-            console.error('Error:', error);
+ async function cargarDatos() {
+    console.log('Cargando datos...');
+    try {
+        const response = await fetch('../../../api/productos.php');
+        const productos = await response.json();
+        productosGlobal = productos;
+        
+        // Debug: Ver qué información tiene el primer producto
+        if(productos.length > 0) {
+            console.log('Primer producto:', productos[0]);
+            console.log('tiene_imagen:', productos[0].tiene_imagen);
         }
+        
+        const carritoStorage = localStorage.getItem('carrito');
+        
+        if(!carritoStorage || carritoStorage === '[]') {
+            window.location.href = '../tienda.php';
+            return;
+        }
+        
+        carrito = JSON.parse(carritoStorage);
+        if(carrito.length === 0) {
+            window.location.href = '../tienda.php';
+            return;
+        }
+        
+        // Enriquecer carrito con datos de productos
+        carrito = carrito.map(item => {
+            const producto = productosGlobal.find(p => p.id == item.id);
+            if(producto) {
+                return {
+                    ...item,
+                    nombre: producto.nombre,
+                    precio: parseFloat(producto.precio),
+                    stock: producto.stock,
+                    tiene_imagen: producto.tiene_imagen  // ← IMPORTANTE: guardar este valor
+                };
+            }
+            return item;
+        });
+        
+        console.log('Carrito enriquecido:', carrito);
+        
+        calcularTotales();
+        mostrarResumen();
+    } catch(error) {
+        console.error('Error al cargar datos:', error);
+        document.getElementById('orderItems').innerHTML = '<div class="error">Error al cargar el carrito</div>';
     }
+}
 
     function calcularTotales() {
         subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
         total = subtotal + envio;
+        console.log('Totales - Subtotal:', subtotal, 'Envío:', envio, 'Total:', total);
     }
 
-    function mostrarResumen() {
-        const orderItems = document.getElementById('orderItems');
-        if(orderItems && carrito.length > 0) {
-            orderItems.innerHTML = carrito.map(item => `
+
+function mostrarResumen() {
+    const orderItems = document.getElementById('orderItems');
+    if(orderItems && carrito.length > 0) {
+        orderItems.innerHTML = carrito.map(item => {
+            // Usar la MISMA URL que funciona en el navegador
+            let imagenUrl = '';
+            if(item.tiene_imagen) {
+                // Usar ruta ABSOLUTA desde la raíz (la misma que funciona)
+                imagenUrl = `/eslava/pasteleria/api/imagen_producto.php?id=${item.id}`;
+            } else {
+                // Placeholder interno (no depende de internet)
+                imagenUrl = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"%3E%3Crect width="50" height="50" fill="%23f0f0f0"/%3E%3Ctext x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%23999" font-size="10"%3EProducto%3C/text%3E%3C/svg%3E';
+            }
+            
+            return `
                 <div class="order-item">
+                    <div class="order-item-img">
+                        <img src="${imagenUrl}" 
+                             alt="${escapeHtml(item.nombre)}" 
+                             style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;"
+                             onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'50\' height=\'50\' viewBox=\'0 0 50 50\'%3E%3Crect width=\'50\' height=\'50\' fill=\'%23f0f0f0\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\' font-size=\'10\'%3EProducto%3C/text%3E%3C/svg%3E'">
+                    </div>
                     <div class="order-item-info">
-                        <span class="order-item-name">${item.nombre}</span>
+                        <span class="order-item-name">${escapeHtml(item.nombre)}</span>
                         <span class="order-item-qty">x${item.cantidad}</span>
                     </div>
                     <span class="order-item-price">$${(item.precio * item.cantidad).toFixed(2)}</span>
                 </div>
-            `).join('');
-        }
-
-        const orderTotals = document.getElementById('orderTotals');
-        if(orderTotals) {
-            orderTotals.innerHTML = `
-                <div class="totals-row">
-                    <span>Subtotal</span>
-                    <span>$${subtotal.toFixed(2)}</span>
-                </div>
-                <div class="totals-row">
-                    <span>Envío</span>
-                    <span>${envio === 0 ? 'Gratis' : '$' + envio.toFixed(2)}</span>
-                </div>
-                <div class="totals-row total">
-                    <span>TOTAL</span>
-                    <span>$${total.toFixed(2)}</span>
-                </div>
             `;
-        }
+        }).join('');
+    } else if(orderItems) {
+        orderItems.innerHTML = '<div class="loading">No hay productos en el carrito</div>';
     }
+
+    const orderTotals = document.getElementById('orderTotals');
+    if(orderTotals) {
+        orderTotals.innerHTML = `
+            <div class="totals-row">
+                <span>Subtotal</span>
+                <span>$${subtotal.toFixed(2)}</span>
+            </div>
+            <div class="totals-row">
+                <span>Envío</span>
+                <span>${envio === 0 ? 'Gratis' : '$' + envio.toFixed(2)}</span>
+            </div>
+            <div class="totals-row total">
+                <span>TOTAL</span>
+                <span>$${total.toFixed(2)}</span>
+            </div>
+        `;
+    }
+}
+
+// Función auxiliar para escapar HTML
+function escapeHtml(text) {
+    if(!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
     // Métodos de pago
     document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
@@ -301,7 +340,6 @@ $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
                 document.getElementById('transferenciaFields').style.display = 'block';
             } else if(this.value === 'oxxo') {
                 document.getElementById('oxxoFields').style.display = 'block';
-                // Forzar generación del código
                 setTimeout(() => generarCodigoOxxo(), 100);
             }
         });
@@ -328,141 +366,100 @@ $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
         });
     });
 
-function generarCodigoOxxo() {
-    console.log('Generando código OXXO, Total:', total);
-    
-    if(total === 0) {
-        calcularTotales();
-    }
-    
-    // Generar número de referencia de 24 dígitos
-    const fecha = new Date();
-    const anio = fecha.getFullYear().toString().slice(-2);
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
-    const dia = fecha.getDate().toString().padStart(2, '0');
-    const hora = fecha.getHours().toString().padStart(2, '0');
-    const minuto = fecha.getMinutes().toString().padStart(2, '0');
-    const segundo = fecha.getSeconds().toString().padStart(2, '0');
-    const milisegundo = fecha.getMilliseconds().toString().padStart(3, '0');
-    const aleatorio1 = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-    const aleatorio2 = Math.floor(Math.random() * 999).toString().padStart(3, '0');
-    
-    // Referencia de 24 dígitos
-    let referencia = anio + mes + dia + hora + minuto + segundo + milisegundo + aleatorio1 + aleatorio2;
-    if(referencia.length < 24) {
-        referencia = referencia.padEnd(24, '0');
-    }
-    
-    // Formatear para mostrar (grupos de 4)
-    const referenciaFormateada = referencia.match(/.{1,4}/g).join(' ');
-    
-    // Mostrar código
-    document.getElementById('oxxoCode').innerHTML = `<strong>Código de barras:</strong> ${referenciaFormateada}`;
-    document.getElementById('oxxoNumber').textContent = referencia;
-    document.getElementById('montoOxxo').textContent = `$${total.toFixed(2)} MXN`;
-    
-    // Generar código de barras
-    const container = document.getElementById('codigoBarras');
-    if(container) {
-        container.innerHTML = '';
+    function generarCodigoOxxo() {
+        console.log('Generando código OXXO, Total:', total);
         
-        const canvas = document.createElement('canvas');
-        canvas.width = 750;
-        canvas.height = 90;
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-        canvas.style.background = 'white';
+        if(total === 0) {
+            calcularTotales();
+        }
         
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const fecha = new Date();
+        const anio = fecha.getFullYear().toString().slice(-2);
+        const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+        const dia = fecha.getDate().toString().padStart(2, '0');
+        const hora = fecha.getHours().toString().padStart(2, '0');
+        const minuto = fecha.getMinutes().toString().padStart(2, '0');
+        const segundo = fecha.getSeconds().toString().padStart(2, '0');
+        const milisegundo = fecha.getMilliseconds().toString().padStart(3, '0');
+        const aleatorio1 = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+        const aleatorio2 = Math.floor(Math.random() * 999).toString().padStart(3, '0');
         
-        const codigo = referencia;
-        const startX = 30;
-        const endX = canvas.width - 30;
-        const barHeight = 50;
-        let x = startX;
+        let referencia = anio + mes + dia + hora + minuto + segundo + milisegundo + aleatorio1 + aleatorio2;
+        if(referencia.length < 24) {
+            referencia = referencia.padEnd(24, '0');
+        }
         
-        const espacioDisponible = endX - startX;
-        const totalDigitos = codigo.length;
-        const paso = espacioDisponible / totalDigitos;
+        const referenciaFormateada = referencia.match(/.{1,4}/g).join(' ');
         
-        const digitosPosiciones = [];
+        document.getElementById('oxxoCode').innerHTML = `<strong>Código de barras:</strong> ${referenciaFormateada}`;
+        document.getElementById('oxxoNumber').textContent = referencia;
+        document.getElementById('montoOxxo').textContent = `$${total.toFixed(2)} MXN`;
         
-        for(let i = 0; i < codigo.length; i++) {
-            const digito = parseInt(codigo[i]);
-            let anchoBarra = 0.8 + (digito / 8);
-            anchoBarra = Math.min(anchoBarra, 2);
+        const container = document.getElementById('codigoBarras');
+        if(container) {
+            container.innerHTML = '';
             
-            const centroX = x + (anchoBarra / 2);
-            digitosPosiciones.push({ digito: codigo[i], x: centroX });
+            const canvas = document.createElement('canvas');
+            canvas.width = 750;
+            canvas.height = 90;
+            canvas.style.width = '100%';
+            canvas.style.height = 'auto';
+            canvas.style.background = 'white';
+            
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const codigo = referencia;
+            const startX = 30;
+            const endX = canvas.width - 30;
+            const barHeight = 50;
+            let x = startX;
+            
+            const espacioDisponible = endX - startX;
+            const totalDigitos = codigo.length;
+            const paso = espacioDisponible / totalDigitos;
+            const digitosPosiciones = [];
+            
+            for(let i = 0; i < codigo.length; i++) {
+                const digito = parseInt(codigo[i]);
+                let anchoBarra = 0.8 + (digito / 8);
+                anchoBarra = Math.min(anchoBarra, 2);
+                const centroX = x + (anchoBarra / 2);
+                digitosPosiciones.push({ digito: codigo[i], x: centroX });
+                ctx.fillStyle = '#000';
+                ctx.fillRect(x, 10, anchoBarra, barHeight);
+                x += paso;
+            }
             
             ctx.fillStyle = '#000';
-            ctx.fillRect(x, 10, anchoBarra, barHeight);
+            ctx.font = '8px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
             
-            x += paso;
+            for(let i = 0; i < digitosPosiciones.length; i++) {
+                const pos = digitosPosiciones[i];
+                ctx.fillText(pos.digito, pos.x, barHeight + 5);
+            }
+            
+            ctx.font = 'bold 9px monospace';
+            ctx.fillStyle = '#000';
+            ctx.textAlign = 'center';
+            ctx.fillText(referencia, canvas.width / 2, barHeight + 22);
+            
+            container.appendChild(canvas);
         }
         
-        // Dibujar números debajo de las barras
-        ctx.fillStyle = '#000';
-        ctx.font = '8px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        
-        for(let i = 0; i < digitosPosiciones.length; i++) {
-            const pos = digitosPosiciones[i];
-            ctx.fillText(pos.digito, pos.x, barHeight + 5);
-        }
-        
-        // Dibujar código completo abajo
-        ctx.font = 'bold 9px monospace';
-        ctx.fillStyle = '#000';
-        ctx.textAlign = 'center';
-        ctx.fillText(referencia, canvas.width / 2, barHeight + 22);
-        
-        container.appendChild(canvas);
+        console.log('Código OXXO generado:', referencia);
+        iniciarTemporizador();
     }
-    
-    console.log('Código OXXO generado:', referencia);
-    iniciarTemporizador();
-}
-
-function iniciarTemporizador() {
-    const timerDiv = document.getElementById('timerOxxo');
-    if(!timerDiv) return;
-    
-    // Establecer fecha límite (24 horas desde ahora)
-    const horaFin = new Date();
-    horaFin.setHours(horaFin.getHours() + 24);
-    
-    function actualizarTimer() {
-        const ahora = new Date();
-        const diff = horaFin - ahora;
-        
-        if(diff <= 0) {
-            timerDiv.innerHTML = '⏰ El tiempo para pagar ha expirado. Por favor genera un nuevo código.';
-            timerDiv.style.background = '#f8d7da';
-            timerDiv.style.color = '#721c24';
-            return;
-        }
-        
-        const horas = Math.floor(diff / (1000 * 60 * 60));
-        const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const segundos = Math.floor((diff % (1000 * 60)) / 1000);
-        
-        timerDiv.innerHTML = `⏳ Tiempo restante para pagar: ${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
-    }
-    
-    actualizarTimer();
-    if(window.timerInterval) clearInterval(window.timerInterval);
-    window.timerInterval = setInterval(actualizarTimer, 1000);
-}
 
     function iniciarTemporizador() {
         const timerDiv = document.getElementById('timerOxxo');
         if(!timerDiv) return;
         
-        // Establecer fecha límite (24 horas desde ahora)
+        if(window.timerInterval) clearInterval(window.timerInterval);
+        
         const horaFin = new Date();
         horaFin.setHours(horaFin.getHours() + 24);
         
@@ -474,24 +471,21 @@ function iniciarTemporizador() {
                 timerDiv.innerHTML = '⏰ El tiempo para pagar ha expirado. Por favor genera un nuevo código.';
                 timerDiv.style.background = '#f8d7da';
                 timerDiv.style.color = '#721c24';
+                if(window.timerInterval) clearInterval(window.timerInterval);
                 return;
             }
             
             const horas = Math.floor(diff / (1000 * 60 * 60));
             const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const segundos = Math.floor((diff % (1000 * 60)) / 1000);
-            
             timerDiv.innerHTML = `⏳ Tiempo restante para pagar: ${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
         }
         
         actualizarTimer();
-        const intervalo = setInterval(actualizarTimer, 1000);
-        
-        // Guardar intervalo para limpiar después
-        window.timerInterval = intervalo;
+        window.timerInterval = setInterval(actualizarTimer, 1000);
     }
 
-    // Evento submit
+    // Evento submit del formulario
     const checkoutForm = document.getElementById('checkoutForm');
     if(checkoutForm) {
         checkoutForm.addEventListener('submit', async (e) => {
@@ -542,10 +536,12 @@ function iniciarTemporizador() {
                 const response = await fetch('../../../api/procesar_pedido.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
+                    credentials: 'include',
                     body: JSON.stringify(pedido)
                 });
                 
                 const result = await response.json();
+                console.log('Respuesta del servidor:', result);
                 
                 if(result.success) {
                     localStorage.removeItem('carrito');
@@ -557,7 +553,8 @@ function iniciarTemporizador() {
                     btn.disabled = false;
                 }
             } catch(error) {
-                alert('Error al procesar el pedido');
+                console.error('Error:', error);
+                alert('Error al procesar el pedido: ' + error.message);
                 btn.innerHTML = btnText;
                 btn.disabled = false;
             }
@@ -567,7 +564,6 @@ function iniciarTemporizador() {
     document.addEventListener('DOMContentLoaded', () => {
         cargarDatos();
     });
-</script>
-
+    </script>
 </body>
 </html>
